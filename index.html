@@ -233,9 +233,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
         <label><div class="kicker" style="letter-spacing:.08em;margin-bottom:6px">Taster A</div><input id="nameA" type="text" placeholder="First taster"></label>
         <label><div class="kicker" style="letter-spacing:.08em;margin-bottom:6px">Taster B</div><input id="nameB" type="text" placeholder="Second taster"></label>
       </div>
-      <hr class="soft">
-      <h3 style="margin:0 0 6px">Tonight’s highlights</h3>
-      <div id="dashboardHighlights" class="favorite-list"></div>
+
     </div>
   </section>
 
@@ -662,11 +660,7 @@ function drawDashboard() {
     tv.innerHTML = topVenues.length ? topVenues.map(([venue, data]) => `<div class="favorite-card"><div class="favorite-title">${safe(venue)}</div><div class="panel-note">${data.count} drinks explored · ${data.loved} favorites</div></div>`).join('') : '<div class="empty">Once you start marking drinks tried, your top venues will show up here.</div>';
   }
   
-  const dh = $('dashboardHighlights');
-  if (dh) {
-    const recs = drinks.filter(x => { const r = rating(x.id); return !(r.at || r.bt); }).sort((a,b) => normalizeSort(a.name).localeCompare(normalizeSort(b.name))).slice(0, 3);
-    dh.innerHTML = recs.length ? recs.map(x => `<div class="favorite-card"><div class="favorite-title">Try next: ${safe(x.name)}</div><div class="panel-note">${safe(x.venue)} · ${inferTags(x.name, x.venue).join(' · ')}</div><div class="meta"><button class="mini" data-detail="${safe(x.id)}">Open details</button></div></div>`).join('') : '<div class="empty">You have tried every listed drink. Time for a victory lap!</div>';
-  }
+
 }
 
 function updateSectionPickers() {
@@ -1036,7 +1030,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   on('favoritesList', 'click', e => { const btn = e.target.closest('[data-detail]'); if (btn) openDetail(btn.dataset.detail); });
   on('topRatedList', 'click', e => { const btn = e.target.closest('[data-detail]'); if (btn) openDetail(btn.dataset.detail); });
-  on('dashboardHighlights', 'click', e => { const btn = e.target.closest('[data-detail]'); if (btn) openDetail(btn.dataset.detail); });
   on('finderResult', 'click', e => { const btn = e.target.closest('[data-open-picked]'); if (btn) openDetail(btn.dataset.openPicked); });
 
   // Add Custom Drink Form
