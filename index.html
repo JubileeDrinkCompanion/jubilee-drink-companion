@@ -64,6 +64,8 @@ linear-gradient(180deg,rgba(255,255,255,.02),transparent 26%);pointer-events:non
 .tabline{display:inline-flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0;padding:0}
 .tab{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);backdrop-filter:blur(10px);color:var(--text);border-radius:999px;padding:11px 14px;min-height:44px}
 .tab.active{background:linear-gradient(145deg,#11395a,#0f7d92);border-color:rgba(78,200,217,.35)}
+.tab.reset-tab{border-color:rgba(255,127,168,.25);color:#ffd4e3}
+.tab.reset-tab:hover{background:rgba(255,127,168,.18);border-color:rgba(255,127,168,.45)}
 .hidden{display:none !important}
 .controls{display:grid;grid-template-columns:1.2fr .8fr .8fr;gap:10px}
 input[type=text],input[type=search],input[type=number],textarea,select{width:100%;min-height:46px;border-radius:14px;border:1px solid rgba(186,216,235,.16);background:rgba(255,255,255,.06);color:var(--text);padding:11px 13px;outline:none}
@@ -147,6 +149,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
         <button class="tab" data-tab="bars">📍 Bars</button>
         <button class="tab" data-tab="favorites">♥ Favorites</button>
         <button class="tab" data-tab="backup">⚙ Backup</button>
+        <button class="tab reset-tab" id="resetBtn" title="Reset all passport data">↺ Reset everything</button>
       </nav>
     </div>
 
@@ -303,7 +306,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
       <div class="rowbuttons"><button class="btn primary" id="exportBtn">Download backup (.json)</button><button class="btn" id="importBtn">Import backup</button><input type="file" id="importFile" accept="application/json,.json,text/csv,.csv" class="hidden"></div>
       <p class="panel-note">Import replaces the current saved passport after confirmation.</p>
       <hr class="soft">
-      <div class="rowbuttons"><button class="btn" id="csvBtn">Export ratings (.csv)</button><button class="btn" id="shareUrlBtn">Copy app URL</button><button class="btn" id="resetBtn">Reset everything</button></div>
+      <div class="rowbuttons"><button class="btn" id="csvBtn">Export ratings (.csv)</button><button class="btn" id="shareUrlBtn">Copy app URL</button></div>
       <p class="panel-note">Sharing the URL shares the app, not your saved data. Each person gets a private copy of their own progress on their own phone.</p>
     </section>
   </div>
