@@ -1,7 +1,14 @@
-Carnival Jubilee Drink Passport PWA
+Carnival Jubilee Drink Passport — Midnight at Sea Update
 
-Upload ALL files in this folder together to the root of a GitHub Pages repository or another HTTPS static site. Then open its HTTPS URL in Chrome on your phone. Choose browser menu > Add to Home screen > Install. Open the app online once before relying on offline mode.
+Replace the existing files in your GitHub repository with the files in this folder:
+- index.html
+- manifest.webmanifest
+- service-worker.js
+- icon-192.png
+- icon-512.png
 
-Data is stored in localStorage on this device and this website origin only. Existing progress in a file:// copy will not carry over. Export a backup from the original version, then import it in the published version. Use Export Backup regularly; clearing site data can erase saved progress.
-
-This PWA does not automatically sync between phones.
+Important:
+1. Export a backup from the current app before updating, just to be safe.
+2. Upload these files to the root of the same repository.
+3. After publishing, open the app once while online so the new files are cached.
+4. If the old design still appears, refresh the page once or close and reopen the installed app.
