@@ -27,7 +27,7 @@ linear-gradient(180deg,rgba(255,255,255,.02),transparent 26%);pointer-events:non
 .hero h1{margin:0;font-size:clamp(31px,7vw,52px);line-height:1.02}
 .hero p{margin:10px 0 0;color:#c6d9e5;max-width:60ch}
 .spark{display:inline-flex;gap:8px;align-items:center;color:var(--gold);font-size:18px;margin-bottom:6px}
-.hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.hero-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:18px}
 .btn{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--text);padding:11px 15px;border-radius:14px;min-height:44px}
 .btn:hover{background:rgba(255,255,255,.08)}
 .btn.primary{background:linear-gradient(140deg,#11395a,#0f7d92);border-color:rgba(78,200,217,.25);box-shadow:0 10px 24px rgba(10,116,138,.24)}
@@ -61,7 +61,7 @@ linear-gradient(180deg,rgba(255,255,255,.02),transparent 26%);pointer-events:non
 .panel h2,.panel h3{margin:0 0 6px}
 .panel-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:10px}
 .panel-note{margin:0;color:var(--muted);font-size:14px}
-.tabline{position:sticky;top:0;z-index:10;display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 0;padding:10px 0 4px;background:linear-gradient(180deg,rgba(5,15,27,.94),rgba(5,15,27,.6),transparent)}
+.tabline{display:inline-flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0;padding:0}
 .tab{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);backdrop-filter:blur(10px);color:var(--text);border-radius:999px;padding:11px 14px;min-height:44px}
 .tab.active{background:linear-gradient(145deg,#11395a,#0f7d92);border-color:rgba(78,200,217,.35)}
 .hidden{display:none !important}
@@ -141,6 +141,13 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     <div class="hero-actions">
       <button class="btn primary" id="jumpExplore">Explore drinks</button>
       <button class="btn gold" id="jumpFinder">Find my next cocktail</button>
+      <nav class="tabline" role="tablist" aria-label="Passport sections">
+        <button class="tab active" data-tab="dashboard">✨ Dashboard</button>
+        <button class="tab" data-tab="explore">🍹 Explore</button>
+        <button class="tab" data-tab="bars">📍 Bars</button>
+        <button class="tab" data-tab="favorites">♥ Favorites</button>
+        <button class="tab" data-tab="backup">⚙ Backup</button>
+      </nav>
     </div>
 
     <!-- Daily Cheers! Package Tracker -->
@@ -229,13 +236,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     </div>
   </section>
 
-  <nav class="tabline" role="tablist" aria-label="Passport sections">
-    <button class="tab active" data-tab="dashboard">✨ Dashboard</button>
-    <button class="tab" data-tab="explore">🍹 Explore</button>
-    <button class="tab" data-tab="bars">📍 Bars</button>
-    <button class="tab" data-tab="favorites">♥ Favorites</button>
-    <button class="tab" data-tab="backup">⚙ Backup</button>
-  </nav>
+
 
   <div id="dashboardView">
     <section class="split">
@@ -299,7 +300,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   <div id="backupView" class="hidden">
     <section class="panel">
       <div class="panel-head"><div><h2>Save or transfer your passport</h2><p class="panel-note">Everything is stored locally in this browser. Export a backup regularly, especially before reinstalling or switching devices.</p></div><span class="pill">Offline friendly</span></div>
-      <div class="rowbuttons"><button class="btn primary" id="exportBtn">Download backup (.json)</button><button class="btn" id="importBtn">Import backup</button><input type="file" id="importFile" accept="application/json,.json" class="hidden"></div>
+      <div class="rowbuttons"><button class="btn primary" id="exportBtn">Download backup (.json)</button><button class="btn" id="importBtn">Import backup</button><input type="file" id="importFile" accept="application/json,.json,text/csv,.csv" class="hidden"></div>
       <p class="panel-note">Import replaces the current saved passport after confirmation.</p>
       <hr class="soft">
       <div class="rowbuttons"><button class="btn" id="csvBtn">Export ratings (.csv)</button><button class="btn" id="shareUrlBtn">Copy app URL</button><button class="btn" id="resetBtn">Reset everything</button></div>
@@ -819,16 +820,126 @@ function finderPick() {
 }
 
 function download(name, content, type) {
-  const blob = new Blob([content], {type}); 
-  const u = URL.createObjectURL(blob); 
-  const a = document.createElement('a'); 
-  a.href = u; 
-  a.download = name; 
-  document.body.appendChild(a); 
-  a.click(); 
-  a.remove(); 
-  setTimeout(() => URL.revokeObjectURL(u), 5000);
+  const blob = new Blob([content], { type: type || 'text/plain;charset=utf-8' });
+  
+  // 1. Mobile Share Sheet support (crucial for iOS PWA standalone mode)
+  if (navigator.canShare) {
+    try {
+      const file = new File([blob], name, { type: blob.type });
+      if (navigator.canShare({ files: [file] })) {
+        navigator.share({
+          files: [file],
+          title: name
+        }).then(() => toast('Export shared / saved')).catch(err => {
+          if (err.name !== 'AbortError') fallbackDownload(name, blob);
+        });
+        return;
+      }
+    } catch(e) {
+      // Fall through to fallback
+    }
+  }
+
+  fallbackDownload(name, blob);
 }
+
+function fallbackDownload(name, blob) {
+  try {
+    const u = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = u;
+    a.download = name;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      a.remove();
+      URL.revokeObjectURL(u);
+    }, 4000);
+    toast('Download ready');
+  } catch(e) {
+    alert('Direct file download not permitted on this browser. Please try in a standard browser tab.');
+  }
+}
+
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+  if (lines.length < 2) throw new Error('CSV is empty or missing data rows');
+  
+  function parseRow(line) {
+    const res = [];
+    let insideQuote = false;
+    let entry = '';
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') {
+        if (insideQuote && line[i+1] === '"') { entry += '"'; i++; }
+        else { insideQuote = !insideQuote; }
+      } else if (c === ',' && !insideQuote) {
+        res.push(entry.trim());
+        entry = '';
+      } else {
+        entry += c;
+      }
+    }
+    res.push(entry.trim());
+    return res;
+  }
+
+  const header = parseRow(lines[0]).map(h => h.toLowerCase());
+  const venueIdx = header.findIndex(h => h.includes('venue'));
+  const drinkIdx = header.findIndex(h => h.includes('drink'));
+  const aTriedIdx = header.findIndex(h => h.includes('a tried'));
+  const aLovedIdx = header.findIndex(h => h.includes('a loved'));
+  const aStarsIdx = header.findIndex(h => h.includes('a stars'));
+  const bTriedIdx = header.findIndex(h => h.includes('b tried'));
+  const bLovedIdx = header.findIndex(h => h.includes('b loved'));
+  const bStarsIdx = header.findIndex(h => h.includes('b stars'));
+  const noteIdx = header.findIndex(h => h.includes('note'));
+
+  if (venueIdx === -1 || drinkIdx === -1) {
+    throw new Error('CSV must have "Venue" and "Drink" columns');
+  }
+
+  const ratings = Object.assign({}, store.ratings);
+  const details = Object.assign({}, store.details);
+  const custom = Array.isArray(store.custom) ? [...store.custom] : [];
+  const isTrue = v => String(v).toLowerCase() === 'true' || v === '1';
+
+  for (let i = 1; i < lines.length; i++) {
+    const row = parseRow(lines[i]);
+    if (!row || row.length <= Math.max(venueIdx, drinkIdx)) continue;
+    const venue = row[venueIdx];
+    const drink = row[drinkIdx];
+    if (!venue || !drink) continue;
+    const id = idFor(venue, drink);
+
+    const at = aTriedIdx !== -1 ? isTrue(row[aTriedIdx]) : false;
+    const al = aLovedIdx !== -1 ? isTrue(row[aLovedIdx]) : false;
+    const bt = bTriedIdx !== -1 ? isTrue(row[bTriedIdx]) : false;
+    const bl = bLovedIdx !== -1 ? isTrue(row[bLovedIdx]) : false;
+    const sA = aStarsIdx !== -1 ? Number(row[aStarsIdx]) || 0 : 0;
+    const sB = bStarsIdx !== -1 ? Number(row[bStarsIdx]) || 0 : 0;
+    const note = noteIdx !== -1 ? (row[noteIdx] || '') : '';
+
+    if (at || al || bt || bl) {
+      ratings[id] = { at, al, bt, bl };
+    }
+    if (sA || sB || note) {
+      details[id] = { starsA: sA, starsB: sB, note: note || (details[id]?.note || '') };
+    }
+
+    const origSec = original.find(s => s.name === venue);
+    if (!origSec || !origSec.drinks.includes(drink)) {
+      if (!custom.some(c => c.venue === venue && c.name === drink)) {
+        custom.push({ venue, name: drink });
+      }
+    }
+  }
+
+  return { ratings, details, custom };
+}
+
 
 function rerender() { 
   updateSectionPickers(); 
@@ -951,19 +1062,33 @@ document.addEventListener('DOMContentLoaded', () => {
   on('importFile', 'change', async e => {
     const file = e.target.files[0]; if (!file) return;
     try {
-      const obj = JSON.parse(await file.text());
-      if (obj.app !== 'jubilee-drink-passport' || !obj.data || !Array.isArray(obj.data.custom)) throw Error('Incorrect backup format');
-      if (!confirm("Replace this device's passport with the selected backup?")) return;
-      store = Object.assign(initial(), obj.data); 
-      store.custom = Array.isArray(store.custom) ? store.custom : []; 
-      store.details = store.details && typeof store.details === 'object' ? store.details : {};
-      persist(); 
-      if ($('nameA')) $('nameA').value = store.nameA || ''; 
-      if ($('nameB')) $('nameB').value = store.nameB || ''; 
-      rerender(); 
-      toast('Backup imported successfully');
+      const text = await file.text();
+      const isCSV = file.name.toLowerCase().endsWith('.csv') || text.trim().startsWith('"Venue"') || text.trim().startsWith('Venue,');
+      
+      if (isCSV) {
+        if (!confirm("Import drink ratings & notes from this CSV file into your passport?")) return;
+        const result = parseCSV(text);
+        store.ratings = result.ratings;
+        store.details = result.details;
+        store.custom = result.custom;
+        persist();
+        rerender();
+        toast('CSV ratings imported successfully!');
+      } else {
+        const obj = JSON.parse(text);
+        if (obj.app !== 'jubilee-drink-passport' || !obj.data || !Array.isArray(obj.data.custom)) throw Error('Incorrect backup format');
+        if (!confirm("Replace this device's passport with the selected backup?")) return;
+        store = Object.assign(initial(), obj.data); 
+        store.custom = Array.isArray(store.custom) ? store.custom : []; 
+        store.details = store.details && typeof store.details === 'object' ? store.details : {};
+        persist(); 
+        if ($('nameA')) $('nameA').value = store.nameA || ''; 
+        if ($('nameB')) $('nameB').value = store.nameB || ''; 
+        rerender(); 
+        toast('Backup imported successfully');
+      }
     } catch(err) { 
-      alert('Could not import backup: ' + err.message); 
+      alert('Could not import file: ' + err.message); 
     }
     e.target.value = '';
   });
