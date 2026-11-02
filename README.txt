@@ -1,4 +1,4 @@
-Carnival Jubilee Drink Passport — Midnight at Sea Update (v3 Fixed)
+Carnival Jubilee Cocktail Companion — Midnight at Sea Update (v3 Fixed)
 
 Changes included in this release:
 - Complete defensive event-listener bindings wrapped in DOMContentLoaded (resolves unresponsive button issue).

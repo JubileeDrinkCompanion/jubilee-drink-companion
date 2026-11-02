@@ -1,7 +1,7 @@
 {
-  "name": "Carnival Jubilee Drink Passport",
-  "short_name": "Jubilee Passport",
-  "description": "Interactive Carnival Jubilee cocktail tracker and bar passport",
+  "name": "Carnival Jubilee Cocktail Companion",
+  "short_name": "Jubilee Companion",
+  "description": "Interactive Carnival Jubilee cocktail companion and bar tracker",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

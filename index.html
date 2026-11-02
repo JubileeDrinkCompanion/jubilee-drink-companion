@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <meta name="theme-color" content="#081b2d" />
-<title>Carnival Jubilee Drink Passport</title>
+<title>Carnival Jubilee Cocktail Companion</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -137,7 +137,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   <header class="hero">
     <div class="spark">✦ 🌙 🍸</div>
     <div class="kicker">Midnight at Sea Edition</div>
-    <h1>Carnival Jubilee Drink Passport</h1>
+    <h1>Carnival Jubilee Cocktail Companion</h1>
     <p>A polished cocktail companion for every Jubilee sailing. Track drinks, rate favorites, discover your next sip, and keep everything saved right on your phone.</p>
     
     <div class="hero-actions">
@@ -1060,7 +1060,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Backup & Reset Buttons
-  on('exportBtn', 'click', () => download('jubilee-drink-passport-backup.json', JSON.stringify({app: 'jubilee-drink-passport', version: 3, exportedAt: new Date().toISOString(), data: store}, null, 2), 'application/json'));
+  on('exportBtn', 'click', () => download('jubilee-cocktail-companion-backup.json', JSON.stringify({app: 'jubilee-cocktail-companion', version: 3, exportedAt: new Date().toISOString(), data: store}, null, 2), 'application/json'));
   on('importBtn', 'click', () => { if ($('importFile')) $('importFile').click(); });
   on('importFile', 'change', async e => {
     const file = e.target.files[0]; if (!file) return;
@@ -1079,7 +1079,7 @@ document.addEventListener('DOMContentLoaded', () => {
         toast('CSV ratings imported successfully!');
       } else {
         const obj = JSON.parse(text);
-        if (obj.app !== 'jubilee-drink-passport' || !obj.data || !Array.isArray(obj.data.custom)) throw Error('Incorrect backup format');
+        if ((obj.app !== 'jubilee-cocktail-companion' && obj.app !== 'jubilee-drink-passport') || !obj.data || !Array.isArray(obj.data.custom)) throw Error('Incorrect backup format');
         if (!confirm("Replace this device's passport with the selected backup?")) return;
         store = Object.assign(initial(), obj.data); 
         store.custom = Array.isArray(store.custom) ? store.custom : []; 
@@ -1103,7 +1103,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const d = detail(x.id); 
       return [x.venue, x.deck || '', x.name, !!r.at, !!r.al, d.starsA || 0, !!r.bt, !!r.bl, d.starsB || 0, d.note || '']; 
     })];
-    download('jubilee-drink-passport-ratings.csv', rows.map(r => r.map(quote).join(',')).join('\r\n'), 'text/csv');
+    download('jubilee-cocktail-companion-ratings.csv', rows.map(r => r.map(quote).join(',')).join('\r\n'), 'text/csv');
   });
 
   on('shareUrlBtn', 'click', async () => {
