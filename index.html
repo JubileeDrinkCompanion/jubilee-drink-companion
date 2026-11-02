@@ -84,11 +84,15 @@ select option{color:#111}
 .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .mini{font-size:11px;color:#d2e4f0;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06);border-radius:999px;padding:4px 8px}
 .quick-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-.tiny{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:44px;min-height:42px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.045);color:var(--text);font-size:10px;padding:4px 6px}
-.tiny .sym{font-size:17px;line-height:1}
-.tiny.active{background:linear-gradient(135deg,#0f7d92,#18a9b7);border-color:rgba(78,200,217,.45)}
-.tiny.heart.active{background:linear-gradient(135deg,#9b2c57,#ff7fa8);border-color:rgba(255,127,168,.44)}
-.tiny.info{background:rgba(255,255,255,.06)}
+.tiny{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:44px;min-height:42px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:var(--muted);font-size:10px;padding:4px 6px;transition:all .18s cubic-bezier(.2,.8,.4,1)}
+.tiny .sym{font-size:17px;line-height:1;opacity:.6;transition:transform .18s,opacity .18s}
+.tiny:hover{border-color:rgba(255,255,255,.28);color:var(--text)}
+.tiny.active{background:linear-gradient(135deg,#096c7e,#1bbcd0) !important;border-color:#5de2f2 !important;color:#ffffff !important;font-weight:600;box-shadow:0 0 14px rgba(27,188,208,.48),inset 0 1px 0 rgba(255,255,255,.35)}
+.tiny.active .sym{opacity:1;transform:scale(1.18);color:#ffffff}
+.tiny.heart.active{background:linear-gradient(135deg,#a5184c,#ff4b87) !important;border-color:#ffa1c2 !important;color:#ffffff !important;font-weight:600;box-shadow:0 0 14px rgba(255,75,135,.48),inset 0 1px 0 rgba(255,255,255,.35)}
+.tiny.heart.active .sym{opacity:1;transform:scale(1.22);color:#ffffff}
+.tiny.info{background:rgba(255,255,255,.06);color:var(--text)}
+.tiny.info:hover{background:rgba(255,255,255,.1)}
 .names{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .kv{display:grid;gap:10px}
 .finder-card{display:grid;gap:10px}
@@ -551,7 +555,7 @@ function infoButton(id) {
 
 function renderVenueCard(section, filteredDrinks) {
   const triedHere = filteredDrinks.filter(d => { const r = rating(idFor(section.name, d)); return r.at || r.bt; }).length;
-  const exploredPill = triedHere ? `<span class="pill gold">${triedHere} explored</span>` : `<span class="pill">${filteredDrinks.length} drinks</span>`;
+  const exploredPill = triedHere ? `<span class="pill gold" data-venue-pill="${safe(section.name)}">${triedHere} explored</span>` : `<span class="pill" data-venue-pill="${safe(section.name)}">${filteredDrinks.length} drinks</span>`;
   const deckPill = section.deck ? `<span class="pill" style="margin-left:6px;font-size:11px">${safe(section.deck)}</span>` : '';
   
   let html = `<section class="venue-card"><div class="venue-head"><div><h3 class="venue-title">${safe(section.name)}</h3><p class="panel-note">${safe(section.note)}</p></div><div>${exploredPill}${deckPill}</div></div><div class="drink-list">`;
@@ -732,18 +736,59 @@ function setStar(person, value) {
   toast('Rating saved');
 }
 
+function updateDrinkButtons(id) {
+  const r = store.ratings[id] || {};
+  document.querySelectorAll('button[data-id]').forEach(btn => {
+    if (btn.dataset.id === id) {
+      const field = btn.dataset.field;
+      if (field) {
+        btn.classList.toggle('active', !!r[field]);
+      }
+    }
+  });
+  // Update venue card explored counter without redrawing
+  const [venue] = id.split('::');
+  const sectionDrinks = allDrinks().filter(d => d.venue === venue);
+  const triedCount = sectionDrinks.filter(d => {
+    const s = store.ratings[d.id] || {};
+    return s.at || s.bt;
+  }).length;
+  const pill = document.querySelector(`[data-venue-pill="${venue}"]`);
+  if (pill) {
+    if (triedCount > 0) {
+      pill.className = 'pill gold';
+      pill.textContent = `${triedCount} explored`;
+    } else {
+      pill.className = 'pill';
+      pill.textContent = `${sectionDrinks.length} drinks`;
+    }
+  }
+}
+
 function toggleFlag(id, field) {
   const r = store.ratings[id] || {};
+  const wasAt = !!r.at;
+  const wasBt = !!r.bt;
+
   r[field] = !r[field];
   if (field === 'al' && r.al) r.at = true;
   if (field === 'bl' && r.bl) r.bt = true;
   if (field === 'at' && !r.at) r.al = false;
   if (field === 'bt' && !r.bt) r.bl = false;
   store.ratings[id] = r;
+
+  // Auto-sync Cheers daily counter when tried/consumed status changes
+  if (!wasAt && r.at) adjustCheers('A', 1);
+  else if (wasAt && !r.at) adjustCheers('A', -1);
+
+  if (!wasBt && r.bt) adjustCheers('B', 1);
+  else if (wasBt && !r.bt) adjustCheers('B', -1);
+
   persist(); 
-  drawDrinks(); 
+  updateDrinkButtons(id);
   drawFavorites(); 
   drawDashboard(); 
+  drawBars();
   updateSummary();
   if (currentDetailId === id) openDetail(id);
 }

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jubilee-passport-midnight-v3';
+const CACHE_NAME = 'jubilee-passport-midnight-v5';
 const ASSETS = [
   './',
   './index.html',
