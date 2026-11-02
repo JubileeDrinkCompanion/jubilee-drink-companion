@@ -143,13 +143,13 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     <div class="hero-actions">
       <button class="btn primary" id="jumpExplore">Explore drinks</button>
       <button class="btn gold" id="jumpFinder">Find my next cocktail</button>
-      <nav class="tabline" role="tablist" aria-label="Passport sections">
+      <nav class="tabline" role="tablist" aria-label="Companion sections">
         <button class="tab active" data-tab="dashboard">✨ Dashboard</button>
         <button class="tab" data-tab="explore">🍹 Explore</button>
         <button class="tab" data-tab="bars">📍 Bars</button>
         <button class="tab" data-tab="favorites">♥ Favorites</button>
         <button class="tab" data-tab="backup">⚙ Backup</button>
-        <button class="tab reset-tab" id="resetBtn" title="Reset all passport data">↺ Reset everything</button>
+        <button class="tab reset-tab" id="resetBtn" title="Reset all companion data">↺ Reset everything</button>
       </nav>
     </div>
 
@@ -228,7 +228,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     </div>
 
     <div class="panel">
-      <div class="panel-head"><div><h2>Quick setup</h2><p class="panel-note">Personalize the app for both tasters. Names update throughout the passport.</p></div><span class="pill">Saved on this device</span></div>
+      <div class="panel-head"><div><h2>Quick setup</h2><p class="panel-note">Personalize the app for both tasters. Names update throughout the companion.</p></div><span class="pill">Saved on this device</span></div>
       <div class="names">
         <label><div class="kicker" style="letter-spacing:.08em;margin-bottom:6px">Taster A</div><input id="nameA" type="text" placeholder="First taster"></label>
         <label><div class="kicker" style="letter-spacing:.08em;margin-bottom:6px">Taster B</div><input id="nameB" type="text" placeholder="Second taster"></label>
@@ -269,7 +269,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
       <div id="sections" class="section-grid"></div>
     </section>
     <section class="panel" style="margin-top:16px">
-      <div class="panel-head"><div><h2>Add a missing drink</h2><p class="panel-note">If you discover something not listed, add it here and it becomes part of your passport.</p></div></div>
+      <div class="panel-head"><div><h2>Add a missing drink</h2><p class="panel-note">If you discover something not listed, add it here and it becomes part of your companion.</p></div></div>
       <form id="addForm" class="controls" style="align-items:end">
         <input id="newDrink" type="text" required maxlength="85" placeholder="Drink name" aria-label="New drink name">
         <select id="newSection" aria-label="Drink section"></select>
@@ -300,9 +300,9 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
 
   <div id="backupView" class="hidden">
     <section class="panel">
-      <div class="panel-head"><div><h2>Save or transfer your passport</h2><p class="panel-note">Everything is stored locally in this browser. Export a backup regularly, especially before reinstalling or switching devices.</p></div><span class="pill">Offline friendly</span></div>
+      <div class="panel-head"><div><h2>Save or transfer your companion data</h2><p class="panel-note">Everything is stored locally in this browser. Export a backup regularly, especially before reinstalling or switching devices.</p></div><span class="pill">Offline friendly</span></div>
       <div class="rowbuttons"><button class="btn primary" id="exportBtn">Download backup (.json)</button><button class="btn" id="importBtn">Import backup</button><input type="file" id="importFile" accept="application/json,.json,text/csv,.csv" class="hidden"></div>
-      <p class="panel-note">Import replaces the current saved passport after confirmation.</p>
+      <p class="panel-note">Import replaces your current saved companion data after confirmation.</p>
       <hr class="soft">
       <div class="rowbuttons"><button class="btn" id="csvBtn">Export ratings (.csv)</button><button class="btn" id="shareUrlBtn">Copy app URL</button></div>
       <p class="panel-note">Sharing the URL shares the app, not your saved data. Each person gets a private copy of their own progress on their own phone.</p>
@@ -1062,7 +1062,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const isCSV = file.name.toLowerCase().endsWith('.csv') || text.trim().startsWith('"Venue"') || text.trim().startsWith('Venue,');
       
       if (isCSV) {
-        if (!confirm("Import drink ratings & notes from this CSV file into your passport?")) return;
+        if (!confirm("Import drink ratings & notes from this CSV file into your companion?")) return;
         const result = parseCSV(text);
         store.ratings = result.ratings;
         store.details = result.details;
@@ -1073,7 +1073,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         const obj = JSON.parse(text);
         if ((obj.app !== 'jubilee-cocktail-companion' && obj.app !== 'jubilee-drink-passport') || !obj.data || !Array.isArray(obj.data.custom)) throw Error('Incorrect backup format');
-        if (!confirm("Replace this device's passport with the selected backup?")) return;
+        if (!confirm("Replace this device's companion data with the selected backup?")) return;
         store = Object.assign(initial(), obj.data); 
         store.custom = Array.isArray(store.custom) ? store.custom : []; 
         store.details = store.details && typeof store.details === 'object' ? store.details : {};
@@ -1115,7 +1115,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if ($('nameB')) $('nameB').value = ''; 
     persist(); 
     rerender(); 
-    toast('Passport reset');
+    toast('Companion reset');
   });
 
   on('detailQuick', 'click', e => { 
