@@ -399,6 +399,11 @@ try {
   store = candidate && typeof candidate === 'object' ? Object.assign(initial(), candidate) : initial();
   store.custom = Array.isArray(store.custom) ? store.custom : [];
   store.details = store.details && typeof store.details === 'object' ? store.details : {};
+  store.ratings = store.ratings && typeof store.ratings === 'object' ? store.ratings : {};
+  store.visited = store.visited && typeof store.visited === 'object' ? store.visited : {};
+  store.notes = store.notes && typeof store.notes === 'object' ? store.notes : {};
+  store.cheersA = typeof store.cheersA === 'number' ? store.cheersA : 0;
+  store.cheersB = typeof store.cheersB === 'number' ? store.cheersB : 0;
   const currentDay = getCheersDayKey();
   if (store.cheersDay !== currentDay) {
     store.cheersDay = currentDay;
@@ -410,6 +415,7 @@ try {
 }
 
 const $ = id => document.getElementById(id);
+const on = (id, event, fn) => { const el = $(id); if (el) el.addEventListener(event, fn); };
 const safe = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const idFor = (v, d) => v + '::' + d;
 const noteNames = ['Best cocktail overall','Best frozen drink','Best bar atmosphere','Best presentation','Best unexpected discovery','Drink to order again','Favorite bartender or venue'];
@@ -441,10 +447,11 @@ function persist(silent = false) {
 
 function toast(msg) {
   const el = $('toast'); 
+  if (!el) return;
   el.textContent = msg; 
   el.style.display = 'block'; 
   clearTimeout(window._toastTimer); 
-  window._toastTimer = setTimeout(() => el.style.display = 'none', 2800);
+  window._toastTimer = setTimeout(() => { if (el) el.style.display = 'none'; }, 2800);
 }
 
 function countStats() {
@@ -486,12 +493,18 @@ function updateCheersUI() {
     store.cheersB = 0;
     persist(true);
   }
-  $('cheersLabelA').textContent = store.nameA || 'Taster A';
-  $('cheersLabelB').textContent = store.nameB || 'Taster B';
-  $('cheersCountA').textContent = `${store.cheersA || 0} / 15`;
-  $('cheersCountB').textContent = `${store.cheersB || 0} / 15`;
-  $('cheersCountA').classList.toggle('limit', (store.cheersA || 0) >= 15);
-  $('cheersCountB').classList.toggle('limit', (store.cheersB || 0) >= 15);
+  const lA = $('cheersLabelA'), lB = $('cheersLabelB');
+  const cA = $('cheersCountA'), cB = $('cheersCountB');
+  if (lA) lA.textContent = store.nameA || 'Taster A';
+  if (lB) lB.textContent = store.nameB || 'Taster B';
+  if (cA) {
+    cA.textContent = `${store.cheersA || 0} / 15`;
+    cA.classList.toggle('limit', (store.cheersA || 0) >= 15);
+  }
+  if (cB) {
+    cB.textContent = `${store.cheersB || 0} / 15`;
+    cB.classList.toggle('limit', (store.cheersB || 0) >= 15);
+  }
 }
 
 function adjustCheers(taster, delta) {
@@ -509,19 +522,18 @@ function adjustCheers(taster, delta) {
 
 function updateSummary() {
   const {drinks, uniqueTried, totalTastings, totalFavorites, totalBars} = countStats();
-  $('statUnique').textContent = uniqueTried;
-  $('statTastings').textContent = totalTastings;
-  $('statFavorites').textContent = totalFavorites;
-  $('statBars').textContent = totalBars;
+  if ($('statUnique')) $('statUnique').textContent = uniqueTried;
+  if ($('statTastings')) $('statTastings').textContent = totalTastings;
+  if ($('statFavorites')) $('statFavorites').textContent = totalFavorites;
+  if ($('statBars')) $('statBars').textContent = totalBars;
   const pct = drinks.length ? Math.round(uniqueTried / drinks.length * 100) : 0;
-  $('progressText').textContent = `${uniqueTried} of ${drinks.length} drinks explored`;
-  $('progressPercent').textContent = pct + '%';
-  $('progressFill').style.width = pct + '%';
+  if ($('progressText')) $('progressText').textContent = `${uniqueTried} of ${drinks.length} drinks explored`;
+  if ($('progressPercent')) $('progressPercent').textContent = pct + '%';
+  if ($('progressFill')) $('progressFill').style.width = pct + '%';
   
-  if (totalTastings >= 15) {
-    $('backupBanner').style.display = 'flex';
-  } else {
-    $('backupBanner').style.display = 'none';
+  const banner = $('backupBanner');
+  if (banner) {
+    banner.style.display = totalTastings >= 15 ? 'flex' : 'none';
   }
   updateCheersUI();
 }
@@ -554,9 +566,11 @@ function renderVenueCard(section, filteredDrinks) {
 }
 
 function drawDrinks() {
-  const query = $('search').value.trim().toLowerCase();
-  const ven = $('venueFilter').value;
-  const st = $('statusFilter').value;
+  const sEl = $('search'), vEl = $('venueFilter'), stEl = $('statusFilter'), secEl = $('sections');
+  if (!secEl) return;
+  const query = sEl ? sEl.value.trim().toLowerCase() : '';
+  const ven = vEl ? vEl.value : '';
+  const st = stEl ? stEl.value : 'all';
   const out = [];
   for (const sect of allSections()) {
     if (ven && ven !== sect.name) continue;
@@ -572,27 +586,30 @@ function drawDrinks() {
     if (!filtered.length) continue;
     out.push(renderVenueCard(sect, filtered));
   }
-  $('sections').innerHTML = out.join('') || '<div class="empty">No matching drinks. Try another search or filter.</div>';
+  secEl.innerHTML = out.join('') || '<div class="empty">No matching drinks. Try another search or filter.</div>';
 }
 
 function drawBars() {
-  const sectionCounts = new Map(allDrinks().reduce((acc, d) => {
+  const bg = $('barGrid');
+  if (!bg) return;
+  const countsMap = {};
+  for (const d of allDrinks()) {
+    if (!countsMap[d.venue]) countsMap[d.venue] = {total: 0, tried: 0};
+    countsMap[d.venue].total++;
     const r = rating(d.id);
-    const obj = acc.get(d.venue) || {total: 0, tried: 0};
-    obj.total += 1; 
-    if (r.at || r.bt) obj.tried += 1; 
-    acc.set(d.venue, obj); 
-    return acc;
-  }, new Map()));
+    if (r.at || r.bt) countsMap[d.venue].tried++;
+  }
 
-  $('barGrid').innerHTML = barsWithDecks.map(b => {
-    const counts = sectionCounts.get(b.name) || {total: 0, tried: 0};
+  bg.innerHTML = barsWithDecks.map(b => {
+    const counts = countsMap[b.name] || {total: 0, tried: 0};
     return `<label class="visit-card"><div><div class="favorite-title">${safe(b.name)}</div><div class="panel-note" style="color:var(--gold);font-size:12px;margin:2px 0">${safe(b.deck)}</div><div class="panel-note">${counts.tried} of ${counts.total} listed drinks explored</div></div><input type="checkbox" data-visit="${safe(b.name)}" ${store.visited[b.name]?'checked':''}></label>`;
   }).join('');
 }
 
 function drawNotes() { 
-  $('notesFields').innerHTML = noteNames.map(n => `<label><div class="kicker" style="letter-spacing:.06em;margin-bottom:6px">${safe(n)}</div><input type="text" data-note="${safe(n)}" value="${safe(store.notes[n]||'')}" placeholder="Your answer…"></label>`).join(''); 
+  const nf = $('notesFields');
+  if (!nf) return;
+  nf.innerHTML = noteNames.map(n => `<label><div class="kicker" style="letter-spacing:.06em;margin-bottom:6px">${safe(n)}</div><input type="text" data-note="${safe(n)}" value="${safe(store.notes[n]||'')}" placeholder="Your answer…"></label>`).join(''); 
 }
 
 function avgStars(d) { 
@@ -602,17 +619,22 @@ function avgStars(d) {
 }
 
 function drawFavorites() {
+  const favList = $('favoritesList'), topList = $('topRatedList');
   const drinks = allDrinks();
-  const fav = drinks.filter(x => { const r = rating(x.id); return r.al || r.bl; });
-  $('favoritesList').innerHTML = fav.length ? fav.map(x => {
-    const r = rating(x.id); const det = detail(x.id);
-    const stars = avgStars(det); const starText = stars ? ` · ${stars.toFixed(1)}★ avg` : '';
-    const who = [r.al ? `${store.nameA||'A'} ♥` : '', r.bl ? `${store.nameB||'B'} ♥` : ''].filter(Boolean).join(' · ');
-    return `<div class="favorite-card"><div class="favorite-title">${safe(x.name)}</div><div class="panel-note">${safe(x.venue)}${x.deck ? ' (' + safe(x.deck) + ')' : ''}${starText}</div><div class="meta"><span class="mini">${safe(who)}</span><button class="mini" data-detail="${safe(x.id)}">Open details</button></div></div>`;
-  }).join('') : '<div class="empty">No favorites yet. Tap a heart beside any drink to add it here.</div>';
+  if (favList) {
+    const fav = drinks.filter(x => { const r = rating(x.id); return r.al || r.bl; });
+    favList.innerHTML = fav.length ? fav.map(x => {
+      const r = rating(x.id); const det = detail(x.id);
+      const stars = avgStars(det); const starText = stars ? ` · ${stars.toFixed(1)}★ avg` : '';
+      const who = [r.al ? `${store.nameA||'A'} ♥` : '', r.bl ? `${store.nameB||'B'} ♥` : ''].filter(Boolean).join(' · ');
+      return `<div class="favorite-card"><div class="favorite-title">${safe(x.name)}</div><div class="panel-note">${safe(x.venue)}${x.deck ? ' (' + safe(x.deck) + ')' : ''}${starText}</div><div class="meta"><span class="mini">${safe(who)}</span><button class="mini" data-detail="${safe(x.id)}">Open details</button></div></div>`;
+    }).join('') : '<div class="empty">No favorites yet. Tap a heart beside any drink to add it here.</div>';
+  }
   
-  const topRated = drinks.map(x => ({...x, avg: avgStars(detail(x.id)), det: detail(x.id)})).filter(x => x.avg > 0).sort((a,b) => b.avg - a.avg || normalizeSort(a.name).localeCompare(normalizeSort(b.name))).slice(0, 10);
-  $('topRatedList').innerHTML = topRated.length ? topRated.map(x => `<div class="favorite-card"><div class="favorite-title">${safe(x.name)}</div><div class="panel-note">${safe(x.venue)}${x.deck ? ' (' + safe(x.deck) + ')' : ''}</div><div class="meta"><span class="mini">${x.avg.toFixed(1)}★ average rating</span><button class="mini" data-detail="${safe(x.id)}">Open details</button></div></div>`).join('') : '<div class="empty">No star ratings yet. Use a drink detail card to add them.</div>';
+  if (topList) {
+    const topRated = drinks.map(x => ({...x, avg: avgStars(detail(x.id)), det: detail(x.id)})).filter(x => x.avg > 0).sort((a,b) => b.avg - a.avg || normalizeSort(a.name).localeCompare(normalizeSort(b.name))).slice(0, 10);
+    topList.innerHTML = topRated.length ? topRated.map(x => `<div class="favorite-card"><div class="favorite-title">${safe(x.name)}</div><div class="panel-note">${safe(x.venue)}${x.deck ? ' (' + safe(x.deck) + ')' : ''}</div><div class="meta"><span class="mini">${x.avg.toFixed(1)}★ average rating</span><button class="mini" data-detail="${safe(x.id)}">Open details</button></div></div>`).join('') : '<div class="empty">No star ratings yet. Use a drink detail card to add them.</div>';
+  }
 }
 
 function drawDashboard() {
@@ -626,22 +648,38 @@ function drawDashboard() {
     if (r.al || r.bl) item.loved++; 
     byVenue.set(x.venue, item);
   }
-  const topVenues = [...byVenue.entries()].sort((a,b) => b[1].count - a[1].count).slice(0, 6);
-  $('topVenues').innerHTML = topVenues.length ? topVenues.map(([venue, data]) => `<div class="favorite-card"><div class="favorite-title">${safe(venue)}</div><div class="panel-note">${data.count} drinks explored · ${data.loved} favorites</div></div>`).join('') : '<div class="empty">Once you start marking drinks tried, your top venues will show up here.</div>';
+  const tv = $('topVenues');
+  if (tv) {
+    const topVenues = [...byVenue.entries()].sort((a,b) => b[1].count - a[1].count).slice(0, 6);
+    tv.innerHTML = topVenues.length ? topVenues.map(([venue, data]) => `<div class="favorite-card"><div class="favorite-title">${safe(venue)}</div><div class="panel-note">${data.count} drinks explored · ${data.loved} favorites</div></div>`).join('') : '<div class="empty">Once you start marking drinks tried, your top venues will show up here.</div>';
+  }
   
-  const recs = drinks.filter(x => { const r = rating(x.id); return !(r.at || r.bt); }).sort((a,b) => normalizeSort(a.name).localeCompare(normalizeSort(b.name))).slice(0, 3);
-  $('dashboardHighlights').innerHTML = recs.length ? recs.map(x => `<div class="favorite-card"><div class="favorite-title">Try next: ${safe(x.name)}</div><div class="panel-note">${safe(x.venue)} · ${inferTags(x.name, x.venue).join(' · ')}</div><div class="meta"><button class="mini" data-detail="${safe(x.id)}">Open details</button></div></div>`).join('') : '<div class="empty">You have tried every listed drink. Time for a victory lap!</div>';
+  const dh = $('dashboardHighlights');
+  if (dh) {
+    const recs = drinks.filter(x => { const r = rating(x.id); return !(r.at || r.bt); }).sort((a,b) => normalizeSort(a.name).localeCompare(normalizeSort(b.name))).slice(0, 3);
+    dh.innerHTML = recs.length ? recs.map(x => `<div class="favorite-card"><div class="favorite-title">Try next: ${safe(x.name)}</div><div class="panel-note">${safe(x.venue)} · ${inferTags(x.name, x.venue).join(' · ')}</div><div class="meta"><button class="mini" data-detail="${safe(x.id)}">Open details</button></div></div>`).join('') : '<div class="empty">You have tried every listed drink. Time for a victory lap!</div>';
+  }
 }
 
 function updateSectionPickers() {
   const sections = allSections().map(s => s.name);
-  const v = $('venueFilter').value; const n = $('newSection').value; const fv = $('finderVenue').value;
-  $('venueFilter').innerHTML = '<option value="">All drink sections</option>' + sections.map(s => `<option value="${safe(s)}">${safe(s)}</option>`).join('');
-  $('newSection').innerHTML = sections.map(s => `<option value="${safe(s)}">${safe(s)}</option>`).join('') + '<option value="__new__">+ New section…</option>';
-  $('finderVenue').innerHTML = '<option value="">Any venue</option>' + sections.map(s => `<option value="${safe(s)}">${safe(s)}</option>`).join('');
-  $('venueFilter').value = sections.includes(v) ? v : '';
-  $('newSection').value = sections.includes(n) ? n : 'Frozen Favorites';
-  $('finderVenue').value = sections.includes(fv) ? fv : '';
+  const vf = $('venueFilter'), ns = $('newSection'), fv = $('finderVenue');
+  const v = vf ? vf.value : ''; 
+  const n = ns ? ns.value : ''; 
+  const f = fv ? fv.value : '';
+  
+  if (vf) {
+    vf.innerHTML = '<option value="">All drink sections</option>' + sections.map(s => `<option value="${safe(s)}">${safe(s)}</option>`).join('');
+    vf.value = sections.includes(v) ? v : '';
+  }
+  if (ns) {
+    ns.innerHTML = sections.map(s => `<option value="${safe(s)}">${safe(s)}</option>`).join('') + '<option value="__new__">+ New section…</option>';
+    ns.value = sections.includes(n) ? n : 'Frozen Favorites';
+  }
+  if (fv) {
+    fv.innerHTML = '<option value="">Any venue</option>' + sections.map(s => `<option value="${safe(s)}">${safe(s)}</option>`).join('');
+    fv.value = sections.includes(f) ? f : '';
+  }
 }
 
 function openDetail(id) {
@@ -649,28 +687,36 @@ function openDetail(id) {
   const [venue, name] = id.split('::');
   const section = allSections().find(s => s.name === venue);
   const det = detail(id);
-  $('detailVenue').textContent = venue + (section && section.deck ? ' (' + section.deck + ')' : '');
-  $('detailTitle').textContent = name;
-  $('detailNote').textContent = section ? section.note : 'Drink details';
-  $('detailTags').innerHTML = inferTags(name, venue).map(t => `<span class="mini">${safe(t)}</span>`).join('');
-  $('detailQuick').innerHTML = `${checkButton(id,'at',store.nameA||'A','✓')}${checkButton(id,'al',store.nameA||'A','♥')}${checkButton(id,'bt',store.nameB||'B','✓')}${checkButton(id,'bl',store.nameB||'B','♥')}`;
-  $('labelA').textContent = store.nameA || 'Taster A';
-  $('labelB').textContent = store.nameB || 'Taster B';
-  $('sharedNote').value = det.note || '';
+  if ($('detailVenue')) $('detailVenue').textContent = venue + (section && section.deck ? ' (' + section.deck + ')' : '');
+  if ($('detailTitle')) $('detailTitle').textContent = name;
+  if ($('detailNote')) $('detailNote').textContent = section ? section.note : 'Drink details';
+  if ($('detailTags')) $('detailTags').innerHTML = inferTags(name, venue).map(t => `<span class="mini">${safe(t)}</span>`).join('');
+  if ($('detailQuick')) $('detailQuick').innerHTML = `${checkButton(id,'at',store.nameA||'A','✓')}${checkButton(id,'al',store.nameA||'A','♥')}${checkButton(id,'bt',store.nameB||'B','✓')}${checkButton(id,'bl',store.nameB||'B','♥')}`;
+  if ($('labelA')) $('labelA').textContent = store.nameA || 'Taster A';
+  if ($('labelB')) $('labelB').textContent = store.nameB || 'Taster B';
+  if ($('sharedNote')) $('sharedNote').value = det.note || '';
   drawStars('starsA', det.starsA || 0, 'A');
   drawStars('starsB', det.starsB || 0, 'B');
-  $('detailScrim').classList.add('open');
-  $('detailScrim').setAttribute('aria-hidden', 'false');
+  const scrim = $('detailScrim');
+  if (scrim) {
+    scrim.classList.add('open');
+    scrim.setAttribute('aria-hidden', 'false');
+  }
 }
 
 function closeDetail() { 
-  $('detailScrim').classList.remove('open'); 
-  $('detailScrim').setAttribute('aria-hidden', 'true'); 
+  const scrim = $('detailScrim');
+  if (scrim) {
+    scrim.classList.remove('open'); 
+    scrim.setAttribute('aria-hidden', 'true'); 
+  }
   currentDetailId = null; 
 }
 
 function drawStars(targetId, value, person) {
-  $(targetId).innerHTML = Array.from({length: 5}, (_, i) => i + 1).map(n => `<button class="star ${n<=value?'on':''}" data-star-person="${person}" data-star-value="${n}" aria-label="${n} stars">★</button>`).join('');
+  const el = $(targetId);
+  if (!el) return;
+  el.innerHTML = Array.from({length: 5}, (_, i) => i + 1).map(n => `<button class="star ${n<=value?'on':''}" data-star-person="${person}" data-star-value="${n}" aria-label="${n} stars">★</button>`).join('');
 }
 
 function setStar(person, value) {
@@ -703,7 +749,10 @@ function toggleFlag(id, field) {
 }
 
 function finderPick() {
-  const who = $('finderWho').value, mood = $('finderMood').value, venue = $('finderVenue').value;
+  const who = $('finderWho') ? $('finderWho').value : 'either';
+  const mood = $('finderMood') ? $('finderMood').value : 'any';
+  const venue = $('finderVenue') ? $('finderVenue').value : '';
+  
   let list = allDrinks().filter(x => !venue || x.venue === venue);
   list = list.filter(x => {
     const r = rating(x.id);
@@ -712,119 +761,17 @@ function finderPick() {
     return !(r.at || r.bt);
   });
   if (mood !== 'any') list = list.filter(x => inferTags(x.name, x.venue).map(t => t.toLowerCase()).includes(mood));
+  
+  const res = $('finderResult');
+  if (!res) return;
   if (!list.length) {
-    $('finderResult').innerHTML = '<h3>No match found</h3><p class="panel-note">Everything in that category may already be tried. Change the filters and try again.</p>';
+    res.innerHTML = '<h3>No match found</h3><p class="panel-note">Everything in that category may already be tried. Change the filters and try again.</p>';
     return;
   }
   const pick = list[Math.floor(Math.random() * list.length)];
   const tags = inferTags(pick.name, pick.venue);
-  $('finderResult').innerHTML = `<h3>${safe(pick.name)}</h3><p class="panel-note">${safe(pick.venue)}${pick.deck ? ' (' + safe(pick.deck) + ')' : ''} · ${safe(pick.note)}</p><div class="meta">${tags.map(t => `<span class="mini">${safe(t)}</span>`).join('')}</div><div class="rowbuttons" style="margin-top:10px"><button class="btn primary" data-open-picked="${safe(pick.id)}">Open detail card</button></div>`;
+  res.innerHTML = `<h3>${safe(pick.name)}</h3><p class="panel-note">${safe(pick.venue)}${pick.deck ? ' (' + safe(pick.deck) + ')' : ''} · ${safe(pick.note)}</p><div class="meta">${tags.map(t => `<span class="mini">${safe(t)}</span>`).join('')}</div><div class="rowbuttons" style="margin-top:10px"><button class="btn primary" data-open-picked="${safe(pick.id)}">Open detail card</button></div>`;
 }
-
-function rerender() { 
-  updateSectionPickers(); 
-  updateSummary(); 
-  drawDrinks(); 
-  drawBars(); 
-  drawFavorites(); 
-  drawDashboard(); 
-}
-
-// Navigation Tabs
-for (const btn of document.querySelectorAll('[data-tab]')) {
-  btn.addEventListener('click', () => {
-    for (const b of document.querySelectorAll('[data-tab]')) b.classList.toggle('active', b === btn);
-    const views = ['dashboard','explore','bars','favorites','backup'];
-    for (const v of views) $(v + 'View').classList.toggle('hidden', btn.dataset.tab !== v);
-    window.scrollTo({top: 0, behavior: 'smooth'});
-  });
-}
-
-// Cheers! package buttons
-$('cheersMinusA').addEventListener('click', () => adjustCheers('A', -1));
-$('cheersPlusA').addEventListener('click', () => adjustCheers('A', 1));
-$('cheersMinusB').addEventListener('click', () => adjustCheers('B', -1));
-$('cheersPlusB').addEventListener('click', () => adjustCheers('B', 1));
-
-// Setup Inputs
-$('nameA').value = store.nameA || '';
-$('nameB').value = store.nameB || '';
-for (const fld of ['A', 'B']) {
-  $('name' + fld).addEventListener('input', e => { 
-    store['name' + fld] = e.target.value; 
-    persist(); 
-    rerender(); 
-  });
-}
-
-$('jumpExplore').addEventListener('click', () => document.querySelector('[data-tab="explore"]').click());
-$('jumpFinder').addEventListener('click', () => document.getElementById('finderPanel').scrollIntoView({behavior: 'smooth'}));
-$('bannerExportBtn').addEventListener('click', () => document.querySelector('[data-tab="backup"]').click());
-$('suggestBtn').addEventListener('click', finderPick);
-$('showUntriedBtn').addEventListener('click', () => { 
-  document.querySelector('[data-tab="explore"]').click(); 
-  $('statusFilter').value = 'untried'; 
-  drawDrinks(); 
-});
-
-$('search').addEventListener('input', drawDrinks);
-$('venueFilter').addEventListener('change', drawDrinks);
-$('statusFilter').addEventListener('change', drawDrinks);
-$('notesFields').addEventListener('input', e => { 
-  if (e.target.dataset.note) { 
-    store.notes[e.target.dataset.note] = e.target.value; 
-    persist(true); 
-  } 
-});
-$('barGrid').addEventListener('change', e => { 
-  if (e.target.dataset.visit) { 
-    store.visited[e.target.dataset.visit] = e.target.checked; 
-    persist(); 
-    drawBars(); 
-  } 
-});
-
-$('sections').addEventListener('click', e => {
-  const detailBtn = e.target.closest('[data-detail]');
-  if (detailBtn) return openDetail(detailBtn.dataset.detail);
-  const deleteBtn = e.target.closest('[data-delete]');
-  if (deleteBtn) {
-    if (!confirm('Remove this custom drink and its ratings?')) return;
-    const id = deleteBtn.dataset.delete;
-    store.custom = store.custom.filter(d => idFor(d.venue, d.name) !== id);
-    delete store.ratings[id]; 
-    delete store.details[id]; 
-    persist(); 
-    rerender(); 
-    return;
-  }
-  const btn = e.target.closest('[data-id][data-field]');
-  if (btn) toggleFlag(btn.dataset.id, btn.dataset.field);
-});
-
-$('favoritesList').addEventListener('click', e => { const btn = e.target.closest('[data-detail]'); if (btn) openDetail(btn.dataset.detail); });
-$('topRatedList').addEventListener('click', e => { const btn = e.target.closest('[data-detail]'); if (btn) openDetail(btn.dataset.detail); });
-$('dashboardHighlights').addEventListener('click', e => { const btn = e.target.closest('[data-detail]'); if (btn) openDetail(btn.dataset.detail); });
-$('finderResult').addEventListener('click', e => { const btn = e.target.closest('[data-open-picked]'); if (btn) openDetail(btn.dataset.openPicked); });
-
-$('addForm').addEventListener('submit', e => {
-  e.preventDefault();
-  const name = $('newDrink').value.trim(); 
-  let venue = $('newSection').value;
-  if (venue === '__new__') venue = (prompt('Name of new drink section:') || '').trim();
-  if (!name || !venue) return;
-  if (allSections().some(s => s.name === venue && s.drinks.some(d => d.toLowerCase() === name.toLowerCase()))) { 
-    toast('That drink is already listed in that section.'); 
-    return; 
-  }
-  store.custom.push({venue, name}); 
-  $('newDrink').value = ''; 
-  persist(); 
-  rerender(); 
-  $('venueFilter').value = venue; 
-  drawDrinks(); 
-  toast('Drink added!');
-});
 
 function download(name, content, type) {
   const blob = new Blob([content], {type}); 
@@ -838,83 +785,200 @@ function download(name, content, type) {
   setTimeout(() => URL.revokeObjectURL(u), 5000);
 }
 
-$('exportBtn').addEventListener('click', () => download('jubilee-drink-passport-backup.json', JSON.stringify({app: 'jubilee-drink-passport', version: 3, exportedAt: new Date().toISOString(), data: store}, null, 2), 'application/json'));
-$('importBtn').addEventListener('click', () => $('importFile').click());
-$('importFile').addEventListener('change', async e => {
-  const file = e.target.files[0]; if (!file) return;
-  try {
-    const obj = JSON.parse(await file.text());
-    if (obj.app !== 'jubilee-drink-passport' || !obj.data || !Array.isArray(obj.data.custom)) throw Error('Incorrect backup format');
-    if (!confirm("Replace this device's passport with the selected backup?")) return;
-    store = Object.assign(initial(), obj.data); 
-    store.custom = Array.isArray(store.custom) ? store.custom : []; 
-    store.details = store.details && typeof store.details === 'object' ? store.details : {};
-    persist(); 
-    $('nameA').value = store.nameA || ''; 
-    $('nameB').value = store.nameB || ''; 
-    rerender(); 
-    toast('Backup imported successfully');
-  } catch(err) { 
-    alert('Could not import backup: ' + err.message); 
-  }
-  e.target.value = '';
-});
-
-$('csvBtn').addEventListener('click', () => {
-  const quote = s => '"' + String(s).replace(/"/g, '""') + '"';
-  const rows = [['Venue', 'Deck', 'Drink', 'A tried', 'A loved', 'A stars', 'B tried', 'B loved', 'B stars', 'Note'], ...allDrinks().map(x => { 
-    const r = rating(x.id); 
-    const d = detail(x.id); 
-    return [x.venue, x.deck || '', x.name, !!r.at, !!r.al, d.starsA || 0, !!r.bt, !!r.bl, d.starsB || 0, d.note || '']; 
-  })];
-  download('jubilee-drink-passport-ratings.csv', rows.map(r => r.map(quote).join(',')).join('
-'), 'text/csv');
-});
-
-$('shareUrlBtn').addEventListener('click', async () => {
-  try { 
-    await navigator.clipboard.writeText(APP_URL); 
-    toast('App URL copied'); 
-  } catch(e) { 
-    prompt('Copy this app URL:', APP_URL); 
-  }
-});
-
-$('resetBtn').addEventListener('click', () => {
-  if (!confirm('Clear ALL ratings, names, notes, favorites, Cheers counters, and visited bars on this device? Export a backup first if you want to keep them.')) return;
-  store = initial(); 
-  $('nameA').value = ''; 
-  $('nameB').value = ''; 
-  persist(); 
-  rerender(); 
-  toast('Passport reset');
-});
-
-$('detailQuick').addEventListener('click', e => { 
-  const btn = e.target.closest('[data-id][data-field]'); 
-  if (btn) toggleFlag(btn.dataset.id, btn.dataset.field); 
-});
-
-$('sharedNote').addEventListener('input', e => { 
-  if (!currentDetailId) return; 
-  const d = detail(currentDetailId); 
-  d.note = e.target.value; 
-  store.details[currentDetailId] = d; 
-  persist(true); 
+function rerender() { 
+  updateSectionPickers(); 
+  updateSummary(); 
+  drawDrinks(); 
+  drawBars(); 
   drawFavorites(); 
   drawDashboard(); 
+}
+
+// Setup Event Listeners after DOM loads
+document.addEventListener('DOMContentLoaded', () => {
+  // Navigation Tabs
+  for (const btn of document.querySelectorAll('[data-tab]')) {
+    btn.addEventListener('click', () => {
+      for (const b of document.querySelectorAll('[data-tab]')) b.classList.toggle('active', b === btn);
+      const views = ['dashboard','explore','bars','favorites','backup'];
+      for (const v of views) {
+        const el = $(v + 'View');
+        if (el) el.classList.toggle('hidden', btn.dataset.tab !== v);
+      }
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    });
+  }
+
+  // Cheers! package buttons
+  on('cheersMinusA', 'click', () => adjustCheers('A', -1));
+  on('cheersPlusA', 'click', () => adjustCheers('A', 1));
+  on('cheersMinusB', 'click', () => adjustCheers('B', -1));
+  on('cheersPlusB', 'click', () => adjustCheers('B', 1));
+
+  // Names setup
+  if ($('nameA')) $('nameA').value = store.nameA || '';
+  if ($('nameB')) $('nameB').value = store.nameB || '';
+  for (const fld of ['A', 'B']) {
+    on('name' + fld, 'input', e => { 
+      store['name' + fld] = e.target.value; 
+      persist(); 
+      rerender(); 
+    });
+  }
+
+  // Quick jump & finder buttons
+  on('jumpExplore', 'click', () => { const t = document.querySelector('[data-tab="explore"]'); if (t) t.click(); });
+  on('jumpFinder', 'click', () => { const p = $('finderPanel'); if (p) p.scrollIntoView({behavior: 'smooth'}); });
+  on('bannerExportBtn', 'click', () => { const t = document.querySelector('[data-tab="backup"]'); if (t) t.click(); });
+  on('suggestBtn', 'click', finderPick);
+  on('showUntriedBtn', 'click', () => { 
+    const t = document.querySelector('[data-tab="explore"]'); 
+    if (t) t.click(); 
+    if ($('statusFilter')) $('statusFilter').value = 'untried'; 
+    drawDrinks(); 
+  });
+
+  // Filters & Inputs
+  on('search', 'input', drawDrinks);
+  on('venueFilter', 'change', drawDrinks);
+  on('statusFilter', 'change', drawDrinks);
+  on('notesFields', 'input', e => { 
+    if (e.target.dataset.note) { 
+      store.notes[e.target.dataset.note] = e.target.value; 
+      persist(true); 
+    } 
+  });
+  on('barGrid', 'change', e => { 
+    if (e.target.dataset.visit) { 
+      store.visited[e.target.dataset.visit] = e.target.checked; 
+      persist(); 
+      drawBars(); 
+    } 
+  });
+
+  // Drink Cards Delegated Clicks
+  on('sections', 'click', e => {
+    const detailBtn = e.target.closest('[data-detail]');
+    if (detailBtn) return openDetail(detailBtn.dataset.detail);
+    const deleteBtn = e.target.closest('[data-delete]');
+    if (deleteBtn) {
+      if (!confirm('Remove this custom drink and its ratings?')) return;
+      const id = deleteBtn.dataset.delete;
+      store.custom = store.custom.filter(d => idFor(d.venue, d.name) !== id);
+      delete store.ratings[id]; 
+      delete store.details[id]; 
+      persist(); 
+      rerender(); 
+      return;
+    }
+    const btn = e.target.closest('[data-id][data-field]');
+    if (btn) toggleFlag(btn.dataset.id, btn.dataset.field);
+  });
+
+  on('favoritesList', 'click', e => { const btn = e.target.closest('[data-detail]'); if (btn) openDetail(btn.dataset.detail); });
+  on('topRatedList', 'click', e => { const btn = e.target.closest('[data-detail]'); if (btn) openDetail(btn.dataset.detail); });
+  on('dashboardHighlights', 'click', e => { const btn = e.target.closest('[data-detail]'); if (btn) openDetail(btn.dataset.detail); });
+  on('finderResult', 'click', e => { const btn = e.target.closest('[data-open-picked]'); if (btn) openDetail(btn.dataset.openPicked); });
+
+  // Add Custom Drink Form
+  on('addForm', 'submit', e => {
+    e.preventDefault();
+    const name = $('newDrink') ? $('newDrink').value.trim() : ''; 
+    let venue = $('newSection') ? $('newSection').value : '';
+    if (venue === '__new__') venue = (prompt('Name of new drink section:') || '').trim();
+    if (!name || !venue) return;
+    if (allSections().some(s => s.name === venue && s.drinks.some(d => d.toLowerCase() === name.toLowerCase()))) { 
+      toast('That drink is already listed in that section.'); 
+      return; 
+    }
+    store.custom.push({venue, name}); 
+    if ($('newDrink')) $('newDrink').value = ''; 
+    persist(); 
+    rerender(); 
+    if ($('venueFilter')) $('venueFilter').value = venue; 
+    drawDrinks(); 
+    toast('Drink added!');
+  });
+
+  // Backup & Reset Buttons
+  on('exportBtn', 'click', () => download('jubilee-drink-passport-backup.json', JSON.stringify({app: 'jubilee-drink-passport', version: 3, exportedAt: new Date().toISOString(), data: store}, null, 2), 'application/json'));
+  on('importBtn', 'click', () => { if ($('importFile')) $('importFile').click(); });
+  on('importFile', 'change', async e => {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      const obj = JSON.parse(await file.text());
+      if (obj.app !== 'jubilee-drink-passport' || !obj.data || !Array.isArray(obj.data.custom)) throw Error('Incorrect backup format');
+      if (!confirm("Replace this device's passport with the selected backup?")) return;
+      store = Object.assign(initial(), obj.data); 
+      store.custom = Array.isArray(store.custom) ? store.custom : []; 
+      store.details = store.details && typeof store.details === 'object' ? store.details : {};
+      persist(); 
+      if ($('nameA')) $('nameA').value = store.nameA || ''; 
+      if ($('nameB')) $('nameB').value = store.nameB || ''; 
+      rerender(); 
+      toast('Backup imported successfully');
+    } catch(err) { 
+      alert('Could not import backup: ' + err.message); 
+    }
+    e.target.value = '';
+  });
+
+  on('csvBtn', 'click', () => {
+    const quote = s => '"' + String(s).replace(/"/g, '""') + '"';
+    const rows = [['Venue', 'Deck', 'Drink', 'A tried', 'A loved', 'A stars', 'B tried', 'B loved', 'B stars', 'Note'], ...allDrinks().map(x => { 
+      const r = rating(x.id); 
+      const d = detail(x.id); 
+      return [x.venue, x.deck || '', x.name, !!r.at, !!r.al, d.starsA || 0, !!r.bt, !!r.bl, d.starsB || 0, d.note || '']; 
+    })];
+    download('jubilee-drink-passport-ratings.csv', rows.map(r => r.map(quote).join(',')).join('\r\n'), 'text/csv');
+  });
+
+  on('shareUrlBtn', 'click', async () => {
+    try { 
+      await navigator.clipboard.writeText(APP_URL); 
+      toast('App URL copied'); 
+    } catch(e) { 
+      prompt('Copy this app URL:', APP_URL); 
+    }
+  });
+
+  on('resetBtn', 'click', () => {
+    if (!confirm('Clear ALL ratings, names, notes, favorites, Cheers counters, and visited bars on this device? Export a backup first if you want to keep them.')) return;
+    store = initial(); 
+    if ($('nameA')) $('nameA').value = ''; 
+    if ($('nameB')) $('nameB').value = ''; 
+    persist(); 
+    rerender(); 
+    toast('Passport reset');
+  });
+
+  on('detailQuick', 'click', e => { 
+    const btn = e.target.closest('[data-id][data-field]'); 
+    if (btn) toggleFlag(btn.dataset.id, btn.dataset.field); 
+  });
+
+  on('sharedNote', 'input', e => { 
+    if (!currentDetailId) return; 
+    const d = detail(currentDetailId); 
+    d.note = e.target.value; 
+    store.details[currentDetailId] = d; 
+    persist(true); 
+    drawFavorites(); 
+    drawDashboard(); 
+  });
+
+  document.body.addEventListener('click', e => { 
+    const star = e.target.closest('[data-star-person][data-star-value]'); 
+    if (star) setStar(star.dataset.starPerson, Number(star.dataset.starValue)); 
+  });
+
+  on('closeDetail', 'click', closeDetail);
+  on('detailScrim', 'click', e => { if (e.target === $('detailScrim')) closeDetail(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
+
+  // Initial render
+  rerender();
 });
-
-document.body.addEventListener('click', e => { 
-  const star = e.target.closest('[data-star-person][data-star-value]'); 
-  if (star) setStar(star.dataset.starPerson, Number(star.dataset.starValue)); 
-});
-
-$('closeDetail').addEventListener('click', closeDetail);
-$('detailScrim').addEventListener('click', e => { if (e.target === $('detailScrim')) closeDetail(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
-
-rerender();
 </script>
 </body>
 </html>

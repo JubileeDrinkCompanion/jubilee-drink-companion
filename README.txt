@@ -1,19 +1,18 @@
-Carnival Jubilee Drink Passport — Midnight at Sea Update (v3)
+Carnival Jubilee Drink Passport — Midnight at Sea Update (v3 Fixed)
 
-What was updated:
-- Added Carnival Cheers! 15-drink daily package counter for Taster A and Taster B (with automatic 6:00 AM daily rollover).
-- Added Carnival Jubilee deck numbers to all 18 venues and drink detail cards.
-- Added Zero-Proof / Mocktail tag filter.
-- Added data safety backup reminder banner after 15+ logged tastings.
-- Added protocol guard in service-worker.js to prevent caching issues.
+Changes included in this release:
+- Complete defensive event-listener bindings wrapped in DOMContentLoaded (resolves unresponsive button issue).
+- Safe localStorage schema migration so existing saved data will not crash the UI.
+- Daily Cheers! package tracker (15-drink cap per taster with auto 6:00 AM daily rollover).
+- Deck locations on all 18 venues and drink cards.
+- Zero-Proof / mocktail filtering.
+- Backup warning banner after 15+ tastings.
+- Service worker protocol guard for unsupported URL schemes.
 
-Files included in this package:
+Files:
 - index.html
-- manifest.webmanifest
 - service-worker.js
+- manifest.webmanifest
 - icon-192.png
 - icon-512.png
-
-Deployment:
-1. Commit or upload all files to your GitHub repository root.
-2. Open the page once online on your phone to update the cached service worker.
+- README.txt
