@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Carnival Jubilee Drink Passport",
   "short_name": "Jubilee Passport",
-  "description": "Offline cocktail and bar checklist for Carnival Jubilee cruise",
+  "description": "Offline cocktail and bar checklist for Carnival Jubilee sailings",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
