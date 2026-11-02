@@ -148,9 +148,31 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
         <button class="tab" data-tab="explore">🍹 Explore</button>
         <button class="tab" data-tab="bars">📍 Bars</button>
         <button class="tab" data-tab="favorites">♥ Favorites</button>
-        <button class="tab" data-tab="backup">⚙ Backup</button>
+        <button class="tab" id="backupToggleBtn" type="button" aria-expanded="false" aria-controls="backupPanel">⚙ Backup</button>
         <button class="tab reset-tab" id="resetBtn" title="Reset all companion data">↺ Reset everything</button>
       </nav>
+    </div>
+
+    <!-- Backup & Data Transfer Panel (Visible on top of Cheers! Tracker when Backup is selected) -->
+    <div id="backupPanel" class="panel hidden" style="margin-top:14px;border-color:rgba(78,200,217,.32);background:linear-gradient(165deg,rgba(16,42,66,.96),rgba(9,24,39,.96));box-shadow:0 12px 36px rgba(0,0,0,.45)">
+      <div class="panel-head">
+        <div>
+          <h2>Save or transfer your companion data</h2>
+          <p class="panel-note">Export a backup to keep your ratings safe. This panel closes automatically once your backup is complete.</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="pill">Offline friendly</span>
+          <button class="icon-btn" id="closeBackupPanel" aria-label="Close backup panel" style="width:34px;height:34px;font-size:14px">✕</button>
+        </div>
+      </div>
+      <div class="rowbuttons">
+        <button class="btn primary" id="exportBtn">Download backup (.json)</button>
+        <button class="btn" id="importBtn">Import backup</button>
+        <button class="btn" id="csvBtn">Export ratings (.csv)</button>
+        <button class="btn" id="shareUrlBtn">Copy app URL</button>
+        <input type="file" id="importFile" accept="application/json,.json,text/csv,.csv" class="hidden">
+      </div>
+      <p class="panel-note" style="margin-top:10px">Import replaces your current saved companion data after confirmation.</p>
     </div>
 
     <!-- Daily Cheers! Package Tracker -->
@@ -295,17 +317,6 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
         <div class="panel-head"><div><h2>Top-rated pours</h2><p class="panel-note">Highest star ratings across both tasters.</p></div><span class="pill gold">Best of the voyage</span></div>
         <div id="topRatedList" class="favorite-list"></div>
       </div>
-    </section>
-  </div>
-
-  <div id="backupView" class="hidden">
-    <section class="panel">
-      <div class="panel-head"><div><h2>Save or transfer your companion data</h2><p class="panel-note">Everything is stored locally in this browser. Export a backup regularly, especially before reinstalling or switching devices.</p></div><span class="pill">Offline friendly</span></div>
-      <div class="rowbuttons"><button class="btn primary" id="exportBtn">Download backup (.json)</button><button class="btn" id="importBtn">Import backup</button><input type="file" id="importFile" accept="application/json,.json,text/csv,.csv" class="hidden"></div>
-      <p class="panel-note">Import replaces your current saved companion data after confirmation.</p>
-      <hr class="soft">
-      <div class="rowbuttons"><button class="btn" id="csvBtn">Export ratings (.csv)</button><button class="btn" id="shareUrlBtn">Copy app URL</button></div>
-      <p class="panel-note">Sharing the URL shares the app, not your saved data. Each person gets a private copy of their own progress on their own phone.</p>
     </section>
   </div>
 
@@ -953,7 +964,7 @@ document.addEventListener('DOMContentLoaded', () => {
   for (const btn of document.querySelectorAll('[data-tab]')) {
     btn.addEventListener('click', () => {
       for (const b of document.querySelectorAll('[data-tab]')) b.classList.toggle('active', b === btn);
-      const views = ['dashboard','explore','bars','favorites','backup'];
+      const views = ['dashboard','explore','bars','favorites'];
       for (const v of views) {
         const el = $(v + 'View');
         if (el) el.classList.toggle('hidden', btn.dataset.tab !== v);
@@ -961,6 +972,42 @@ document.addEventListener('DOMContentLoaded', () => {
       window.scrollTo({top: 0, behavior: 'smooth'});
     });
   }
+
+  // Backup panel helpers (displays on top of Cheers! Daily Tracker until complete)
+  function openBackupPanel() {
+    const p = $('backupPanel');
+    if (p) {
+      p.classList.remove('hidden');
+      p.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+    }
+    const b = $('backupToggleBtn');
+    if (b) {
+      b.classList.add('active');
+      b.setAttribute('aria-expanded', 'true');
+    }
+  }
+
+  function closeBackupPanel() {
+    const p = $('backupPanel');
+    if (p) p.classList.add('hidden');
+    const b = $('backupToggleBtn');
+    if (b) {
+      b.classList.remove('active');
+      b.setAttribute('aria-expanded', 'false');
+    }
+  }
+
+  function toggleBackupPanel() {
+    const p = $('backupPanel');
+    if (p && !p.classList.contains('hidden')) {
+      closeBackupPanel();
+    } else {
+      openBackupPanel();
+    }
+  }
+
+  on('backupToggleBtn', 'click', toggleBackupPanel);
+  on('closeBackupPanel', 'click', closeBackupPanel);
 
   // Cheers! package buttons
   on('cheersMinusA', 'click', () => adjustCheers('A', -1));
@@ -982,7 +1029,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Quick jump & finder buttons
   on('jumpExplore', 'click', () => { const t = document.querySelector('[data-tab="explore"]'); if (t) t.click(); });
   on('jumpFinder', 'click', () => { const p = $('finderPanel'); if (p) p.scrollIntoView({behavior: 'smooth'}); });
-  on('bannerExportBtn', 'click', () => { const t = document.querySelector('[data-tab="backup"]'); if (t) t.click(); });
+  on('bannerExportBtn', 'click', openBackupPanel);
   on('suggestBtn', 'click', finderPick);
   on('showUntriedBtn', 'click', () => { 
     const t = document.querySelector('[data-tab="explore"]'); 
@@ -1053,7 +1100,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Backup & Reset Buttons
-  on('exportBtn', 'click', () => download('jubilee-cocktail-companion-backup.json', JSON.stringify({app: 'jubilee-cocktail-companion', version: 3, exportedAt: new Date().toISOString(), data: store}, null, 2), 'application/json'));
+  on('exportBtn', 'click', () => {
+    download('jubilee-cocktail-companion-backup.json', JSON.stringify({app: 'jubilee-cocktail-companion', version: 3, exportedAt: new Date().toISOString(), data: store}, null, 2), 'application/json');
+    setTimeout(() => { closeBackupPanel(); toast('Backup complete!'); }, 800);
+  });
   on('importBtn', 'click', () => { if ($('importFile')) $('importFile').click(); });
   on('importFile', 'change', async e => {
     const file = e.target.files[0]; if (!file) return;
@@ -1069,7 +1119,7 @@ document.addEventListener('DOMContentLoaded', () => {
         store.custom = result.custom;
         persist();
         rerender();
-        toast('CSV ratings imported successfully!');
+        toast('CSV ratings imported successfully!'); closeBackupPanel();
       } else {
         const obj = JSON.parse(text);
         if ((obj.app !== 'jubilee-cocktail-companion' && obj.app !== 'jubilee-drink-passport') || !obj.data || !Array.isArray(obj.data.custom)) throw Error('Incorrect backup format');
@@ -1081,7 +1131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if ($('nameA')) $('nameA').value = store.nameA || ''; 
         if ($('nameB')) $('nameB').value = store.nameB || ''; 
         rerender(); 
-        toast('Backup imported successfully');
+        toast('Backup imported successfully'); closeBackupPanel();
       }
     } catch(err) { 
       alert('Could not import file: ' + err.message); 
@@ -1097,6 +1147,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return [x.venue, x.deck || '', x.name, !!r.at, !!r.al, d.starsA || 0, !!r.bt, !!r.bl, d.starsB || 0, d.note || '']; 
     })];
     download('jubilee-cocktail-companion-ratings.csv', rows.map(r => r.map(quote).join(',')).join('\r\n'), 'text/csv');
+    setTimeout(() => { closeBackupPanel(); toast('CSV export complete!'); }, 800);
   });
 
   on('shareUrlBtn', 'click', async () => {

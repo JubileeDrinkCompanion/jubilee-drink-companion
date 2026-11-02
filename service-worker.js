@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jubilee-companion-v11';
+const CACHE_NAME = 'jubilee-companion-v12';
 const ASSETS = [
   './',
   './index.html',
