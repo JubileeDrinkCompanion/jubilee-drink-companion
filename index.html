@@ -73,8 +73,12 @@ textarea{min-height:110px;resize:vertical}
 input::placeholder,textarea::placeholder{color:#9eb7c8}
 select option{color:#111}
 .section-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:14px}
-.venue-card{border:1px solid var(--line);border-radius:22px;background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.025));padding:14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
-.venue-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.venue-card{border:1px solid var(--line);border-radius:22px;background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.025));padding:14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03);transition:background .2s}
+details.venue-card summary.venue-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;cursor:pointer;list-style:none;outline:none}
+details.venue-card summary.venue-head::-webkit-details-marker,details.venue-card summary.venue-head::marker{display:none}
+.venue-caret{display:inline-block;font-size:13px;color:var(--gold);margin-left:6px;transition:transform .2s ease}
+details.venue-card[open] .venue-caret{transform:rotate(180deg)}
+details.venue-card[open]{background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.035));box-shadow:0 8px 24px rgba(0,0,0,.22)}
 .venue-title{font-size:20px;margin:0}
 .pill{display:inline-flex;gap:6px;align-items:center;border-radius:999px;padding:6px 10px;background:rgba(78,200,217,.12);border:1px solid rgba(78,200,217,.18);font-size:12px;color:#dff6fa}
 .pill.gold{background:rgba(255,207,118,.12);border-color:rgba(255,207,118,.18);color:#ffe9bb}
@@ -287,6 +291,10 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
           <option value="loved">Loved by anyone</option>
           <option value="zero-proof">Zero-Proof / Mocktails</option>
         </select>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
+        <button type="button" class="mini" id="expandAllVenues" style="cursor:pointer;padding:6px 12px;background:rgba(255,255,255,.07)">Expand all</button>
+        <button type="button" class="mini" id="collapseAllVenues" style="cursor:pointer;padding:6px 12px;background:rgba(255,255,255,.07)">Collapse all</button>
       </div>
       <div id="sections" class="section-grid"></div>
     </section>
@@ -566,19 +574,19 @@ function infoButton(id) {
   return `<button type="button" class="tiny info" data-detail="${safe(id)}" aria-label="Open details"><span class="sym">⋯</span><span>More</span></button>`; 
 }
 
-function renderVenueCard(section, filteredDrinks) {
+function renderVenueCard(section, filteredDrinks, isOpen) {
   const triedHere = filteredDrinks.filter(d => { const r = rating(idFor(section.name, d)); return r.at || r.bt; }).length;
   const exploredPill = triedHere ? `<span class="pill gold" data-venue-pill="${safe(section.name)}">${triedHere} explored</span>` : `<span class="pill" data-venue-pill="${safe(section.name)}">${filteredDrinks.length} drinks</span>`;
   const deckPill = section.deck ? `<span class="pill" style="margin-left:6px;font-size:11px">${safe(section.deck)}</span>` : '';
   
-  let html = `<section class="venue-card"><div class="venue-head"><div><h3 class="venue-title">${safe(section.name)}</h3><p class="panel-note">${safe(section.note)}</p></div><div>${exploredPill}${deckPill}</div></div><div class="drink-list">`;
+  let html = `<details class="venue-card" ${isOpen ? 'open' : ''} data-venue="${safe(section.name)}"><summary class="venue-head"><div><h3 class="venue-title">${safe(section.name)} <span class="venue-caret">▾</span></h3><p class="panel-note">${safe(section.note)}</p></div><div style="display:flex;align-items:center">${exploredPill}${deckPill}</div></summary><div class="drink-list">`;
   for (const drink of filteredDrinks) {
     const id = idFor(section.name, drink);
     const custom = (store.custom||[]).some(x => x.venue === section.name && x.name === drink);
     const tags = inferTags(drink, section.name).slice(0,3).map(t => `<span class="mini">${safe(t)}</span>`).join('');
     html += `<div class="drink-card"><div class="drink-main"><div class="drink-name">${safe(drink)}</div><div class="meta">${tags}</div>${custom ? `<div class="meta"><span class="mini">Added by you</span><button class="mini" style="background:transparent;color:#ffd1dc" data-delete="${safe(id)}">Remove</button></div>` : ''}</div><div class="quick-actions">${checkButton(id,'at',store.nameA||'A','✓')}${checkButton(id,'al',store.nameA||'A','♥')}${checkButton(id,'bt',store.nameB||'B','✓')}${checkButton(id,'bl',store.nameB||'B','♥')}${infoButton(id)}</div></div>`;
   }
-  html += '</div></section>';
+  html += '</div></details>';
   return html;
 }
 
@@ -588,6 +596,11 @@ function drawDrinks() {
   const query = sEl ? sEl.value.trim().toLowerCase() : '';
   const ven = vEl ? vEl.value : '';
   const st = stEl ? stEl.value : 'all';
+  
+  // Preserve currently open details if any
+  const openVenues = new Set([...document.querySelectorAll('details.venue-card[open]')].map(d => d.dataset.venue));
+  const autoOpenAll = Boolean(query || ven);
+
   const out = [];
   for (const sect of allSections()) {
     if (ven && ven !== sect.name) continue;
@@ -601,7 +614,8 @@ function drawDrinks() {
       return true;
     });
     if (!filtered.length) continue;
-    out.push(renderVenueCard(sect, filtered));
+    const shouldOpen = autoOpenAll || openVenues.has(sect.name);
+    out.push(renderVenueCard(sect, filtered, shouldOpen));
   }
   secEl.innerHTML = out.join('') || '<div class="empty">No matching drinks. Try another search or filter.</div>';
 }
@@ -1036,6 +1050,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (t) t.click(); 
     if ($('statusFilter')) $('statusFilter').value = 'untried'; 
     drawDrinks(); 
+  });
+
+  // Expand / Collapse all venues
+  on('expandAllVenues', 'click', () => {
+    document.querySelectorAll('details.venue-card').forEach(d => d.open = true);
+  });
+  on('collapseAllVenues', 'click', () => {
+    document.querySelectorAll('details.venue-card').forEach(d => d.open = false);
   });
 
   // Filters & Inputs
